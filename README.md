@@ -7,15 +7,16 @@ This python package gets new articles from PubMed and posts them to the ICAMApi 
 
 `pip install -r requirements.txt`
 
-Requires a config.ini inside the package folder with the following values:
+Requires a config.ini inside the package folder. The following example file is already included in the repo:
 ```ini
 [ICAM]
 # Where the gateway is running, with trailing backslash please!
 gateway_location: http://localhost:8080/
 
 # Using jHipster's JWT auth, gets token from user/pass
-user: xxxxx
-password: xxxxx
+# Default user and password values for jHipster:
+user: user
+password: user
 
 [PUBMED]
 # Each run check PubMed's last xx articles
