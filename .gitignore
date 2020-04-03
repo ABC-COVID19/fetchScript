@@ -1,5 +1,4 @@
 .idea/
 venv/
 .pytest_cache/
-config.ini
 test.py
