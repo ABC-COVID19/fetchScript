@@ -33,7 +33,7 @@ search_term = covid+19
 `python -m fetch_script`
 
 ## Todo
-
-- [] Set up logger (currently just prints basic info to stdout)
-- [] Implement get keywords from source repo
-- [] Set up fetch from BioRxiv
+- [x] Properly structure project
+- [ ] Set up logger (currently just prints basic info to stdout)
+- [ ] Implement get keywords from source repo
+- [ ] Set up fetch from BioRxiv
