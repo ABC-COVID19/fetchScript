@@ -2,7 +2,7 @@
 .idea/
 
 # Test files and other projects
-icam_mailchimp/
+icam_import/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
