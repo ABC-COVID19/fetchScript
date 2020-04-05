@@ -1,0 +1,100 @@
+apiVersion: "v1"
+kind: "Pod"
+metadata:
+  annotations: {}
+  labels:
+    jenkins: "slave"
+    # jenkins/maven-distro: "true"
+#   name: "maven-distro-0pxbs"
+spec:
+  containers:
+#-----------CONTAINER_1------------#
+  - command:
+    - "/bin/sh"
+    - "-c"
+    - "/sbin/apk -U add git docker openssh && mkdir -p ~/.ssh && cat"
+    image: "maven:3-alpine"
+    imagePullPolicy: "Always"
+    name: "default"
+    resources:
+      limits: {}
+      requests: {}
+    securityContext:
+      privileged: false
+    tty: true
+    volumeMounts:
+    - mountPath: "/home/jenkins/agent"
+      name: "workspace-volume"
+      readOnly: false
+    workingDir: "/home/jenkins/agent"
+#----------------------------------#
+#-----------CONTAINER_2------------#
+  - command:
+    - "/bin/sh"
+    - "-c"
+    - "cat"
+    image: "maven:3"
+    imagePullPolicy: "Always"
+    name: "java11"
+    resources:
+      limits: {}
+      requests: {}
+    securityContext:
+      privileged: false
+    tty: true
+    volumeMounts:
+    - mountPath: "/home/jenkins/agent"
+      name: "workspace-volume"
+      readOnly: false
+    workingDir: "/home/jenkins/agent"
+#---------------PYTHON3 -------------------#
+  - command:
+    - "/bin/sh"
+    - "-c"
+    - "cat"
+    image: "python:3.8.2-slim"
+    imagePullPolicy: "Always"
+    name: "python3"
+    resources:
+      limits: {}
+      requests: {}
+    securityContext:
+      privileged: false
+    tty: true
+    volumeMounts:
+    - mountPath: "/home/jenkins/agent"
+      name: "workspace-volume"
+      readOnly: false
+    workingDir: "/home/jenkins/agent"
+#----------------------------------#
+#-----------CONTAINER_3------------#
+  - command:
+    - "/bin/sh"
+    - "-c"
+    - "cat"
+    image: "10.2.12.122/slaves:az-kube-1"
+    imagePullPolicy: "Always"
+    name: "az-kube"
+    resources:
+      limits: {}
+      requests: {}
+    securityContext:
+      privileged: true
+    tty: true
+    volumeMounts:
+    - mountPath: "/home/jenkins/agent"
+      name: "workspace-volume"
+      readOnly: false
+    - name: docker
+      mountPath: "/var/run/docker.sock"
+    workingDir: "/home/jenkins/agent"
+#----------------------------------#
+  nodeSelector: {}
+  restartPolicy: "Never"
+  serviceAccount: "jenkins"
+  volumes:
+  - emptyDir: {}
+    name: "workspace-volume"
+  - name: docker
+    hostPath:
+      path: "/var/run/docker.sock
