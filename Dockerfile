@@ -10,8 +10,8 @@ RUN crontab /etc/cron.d/pubmed-cron
 COPY ./fetch_script /fetch_script
 COPY ./requirements.txt /requirements.txt
 
-WORKDIR /fetch_script
-
 RUN pip3 install -r requirements.txt
+
+WORKDIR /fetch_script
 
 CMD ["cron", "-f"]
