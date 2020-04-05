@@ -167,6 +167,7 @@ def get_single_article(pubmed_id):
         citation += ' {}.'.format(journal)
 
     # Get articleDate (Official publication date - citation and reference purpose only)
+    # todo: standardize d-Mon-yyyy
     official_date = tree.xpath('//pubdate')
     if official_date:
         y, m, d = get_date(official_date)
