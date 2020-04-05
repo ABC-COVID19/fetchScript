@@ -52,7 +52,7 @@ spec:
     - "/bin/sh"
     - "-c"
     - "cat"
-    image: "python:3.8.2-slim"
+    image: "docker.icam.org.pt/slaves:py-dock-1"
     imagePullPolicy: "Always"
     name: "python3"
     resources:
