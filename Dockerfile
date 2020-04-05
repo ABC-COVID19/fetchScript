@@ -8,6 +8,7 @@ RUN chmod 0644 /etc/cron.d/pubmed-cron
 RUN crontab /etc/cron.d/pubmed-cron
 
 COPY ./fetch_script /fetch_script
+COPY ./requirements.txt /requirements.txt
 
 WORKDIR /fetch_script
 
