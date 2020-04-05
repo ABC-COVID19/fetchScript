@@ -58,7 +58,7 @@ spec:
     - "cat"
     image: "docker.icam.org.pt/slaves:py-dock-1"
     imagePullPolicy: "Always"
-    name: "java11"
+    name: "python3"
     resources:
       limits: {}
       requests: {}
