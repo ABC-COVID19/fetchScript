@@ -72,7 +72,7 @@ spec:
     - "/bin/sh"
     - "-c"
     - "cat"
-    image: "10.2.12.122/slaves:az-kube-1"
+    image: "docker.icam.org.pt/slaves:az-kube-1"
     imagePullPolicy: "Always"
     name: "az-kube"
     resources:

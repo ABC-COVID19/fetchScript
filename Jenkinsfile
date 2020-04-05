@@ -21,7 +21,7 @@ pipeline {
         GIT_REPO = "github.com/ABC-COVID19/fetchScript.git"
         NAMESPACE_DEV = "icam-dev" 
         NAMESPACE_PROD = "icam-prod" 
-        DOCKER_HUB = "10.2.12.122" //Need refactor to dns name
+        DOCKER_HUB = "docker.icam.org.pt" //Need refactor to dns name
         // SLACK_CHANNEL = '' 
         // SLACK_TEAM_DOMAIN = ''
         // SLACK_TOKEN = credentials('')
