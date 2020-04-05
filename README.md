@@ -3,11 +3,15 @@
 
 This python package gets new articles from PubMed and posts them to the ICAMApi Gateway!
 
+To use this to auto-generate ArticleTypes and CategoryTrees for testing uncomment the following line in `fetchscript/__main__.py`:
+![](testhook.PNG)
+
 ## Setup
 
 `pip install -r requirements.txt`
 
-Requires a config.ini inside the package folder. The following example file is already included in the repo:
+Requires a config.ini inside the package folder.  
+The following example file is already included in the repo:
 ```ini
 [ICAM]
 # Where the gateway is running, with trailing backslash please!

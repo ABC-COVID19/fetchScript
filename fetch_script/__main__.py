@@ -43,7 +43,9 @@ def main():
 
     icam = Icam(gateway, user, password)
 
+    # UNCOMMENT HERE TO auto generate CategoryTrees and ArticleTypes
     # icam.ctrees_testhook()
+
     fetch_articles_pubmed(icam, num_articles, search_term)
 
 
