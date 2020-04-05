@@ -25,9 +25,9 @@ spec:
     volumeMounts:
     - mountPath: "/home/jenkins/agent"
       name: "workspace-volume"
-      readOnly: false
     - name: docker
       mountPath: "/var/run/docker.sock"
+      readOnly: false
     workingDir: "/home/jenkins/agent"
 #----------------------------------#
 #-----------CONTAINER_2------------#
@@ -35,7 +35,7 @@ spec:
     - "/bin/sh"
     - "-c"
     - "cat"
-    image: "docker.icam.org.pt/slaves:java11-dock-1"
+    image: "maven:3"
     imagePullPolicy: "Always"
     name: "java11"
     resources:
@@ -47,9 +47,30 @@ spec:
     volumeMounts:
     - mountPath: "/home/jenkins/agent"
       name: "workspace-volume"
-      readOnly: false
     - name: docker
       mountPath: "/var/run/docker.sock"
+      readOnly: false
+    workingDir: "/home/jenkins/agent"
+#----------------------------------#
+  - command:
+    - "/bin/sh"
+    - "-c"
+    - "cat"
+    image: "docker.icam.org.pt/slaves:py-dock-1"
+    imagePullPolicy: "Always"
+    name: "java11"
+    resources:
+      limits: {}
+      requests: {}
+    securityContext:
+      privileged: false
+    tty: true
+    volumeMounts:
+    - mountPath: "/home/jenkins/agent"
+      name: "workspace-volume"
+    - name: docker
+      mountPath: "/var/run/docker.sock"
+      readOnly: false
     workingDir: "/home/jenkins/agent"
 #----------------------------------#
 #-----------CONTAINER_3------------#
