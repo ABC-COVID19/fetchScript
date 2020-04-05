@@ -67,7 +67,7 @@ pipeline {
 		
         stage('Merge to Develop') {
             when {
-                branch "feature*"
+                branch "add*"
             }
              steps {
                         sh "git config --global user.email '${GIT_USER}'"
