@@ -7,9 +7,9 @@ COPY pubmed-cron /etc/cron.d/pubmed-cron
 RUN chmod 0644 /etc/cron.d/pubmed-cron
 RUN crontab /etc/cron.d/pubmed-cron
 
-COPY ./fetch-script /fetch-script
+COPY ./fetch_script /fetch_script
 
-WORKDIR /fetch-script
+WORKDIR /fetch_script
 
 RUN pip3 install -r requirements.txt
 
