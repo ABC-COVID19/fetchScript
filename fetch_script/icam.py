@@ -149,7 +149,6 @@ class Icam:
     def get_atypes(self):
         res = requests.get(url=self.atypes_endpoint, headers=self.headers)
         atypes = res.json()
-        print(atypes)
         return atypes
 
     def get_atypes_ids(self):
@@ -164,7 +163,7 @@ class Icam:
                   'Estudo Experimental/Modelos Matemáticos', 'Revisão não sistemática', 'Editorial/Opinião/Comunicação']
 
         current_atypes = self.get_atypes()
-        print(current_atypes)
+        print(f'\ncurrent atypes: {current_atypes}')
         for title in atypes:
             if not any(d['itemName'] == title for d in current_atypes):
                 print(f'atype: {title} does not exist, creating...')
@@ -198,7 +197,6 @@ class Icam:
     def get_ctrees(self):
         res = requests.get(url=self.ctrees_endpoint, headers=self.headers)
         ctrees = res.json()
-        print(f'get_ctrees: {ctrees}')
         return ctrees
 
     def get_ctrees_ids(self):
@@ -257,35 +255,38 @@ class Icam:
         }
 
         current_ctrees = self.get_ctrees()
-        print(f'current ctrees: {current_ctrees}')
+        print(f'\ncurrent ctrees: {current_ctrees}')
+        created_ids_list = []
         for area in ctrees.keys():
 
             if not any(d['itemName'] == area for d in current_ctrees):
-                print(f'ctree area: {area} does not exist, creating...')
+                print(f'\nctree area: {area} does not exist, creating...')
                 atype_dict = {
                     'active': True,
                     'itemName': area,
                 }
                 res = requests.post(url=self.ctrees_endpoint, data=json.dumps(atype_dict), headers=self.headers)
                 current_area_id = res.json()['id']
-                print(f'response {res.status_code}: {res.content}')
+                created_ids_list.append(current_area_id)
+                print(f'response {res.status_code}' if res.status_code == 201 else f'response {res.status_code}: {res.content}')
 
                 if ctrees[area]:
-                    print('generating children')
+                    print('\tgenerating children')
                     for child in ctrees[area]:
                         if not any(d['itemName'] == child for d in current_ctrees):
-                            print(f'ctree child: {child} does not exist, creating...')
+                            print(f'\tctree child: {child} does not exist, creating...')
                             child_dict = {
                                 'active': True,
                                 'itemName': child,
-                                'parent': {"id": current_area_id}
+                                'parent': {'id': current_area_id}
                             }
                             res = requests.post(url=self.ctrees_endpoint, data=json.dumps(child_dict), headers=self.headers)
-                            print(f'response {res.status_code}' if res.status_code == 201 else f'response {res.status_code}: {res.content}')
+                            print(f'\tresponse {res.status_code}' if res.status_code == 201 else f'response {res.status_code}: {res.content}')
+                            created_ids_list.append(res.json()['id'])
                         else:
-                            print(f'atype: {child} already exists, skipping...')
+                            print(f'\tctree: {child} already exists, skipping...')
             else:
-                print(f'atype: {area} already exists, skipping...')
+                print(f'ctree: {area} already exists, skipping...')
 
     def delete_ctree(self, ctree_id):
         url = self.ctrees_endpoint + '/{}'.format(ctree_id)
@@ -294,17 +295,27 @@ class Icam:
     def delete_all_ctrees(self):
         # todo: cant delete parent before child! this is broken
         print('deleting all ctrees!')
-        id_list = self.get_ctrees_ids()
-        for elem in id_list:
-            r = self.delete_ctree(elem)
-            if r.status_code != 204:
-                print('deleting {}: abnormal status {}'.format(elem, r.status_code))
+        ctrees_list = self.get_ctrees()
+        # because of the eager fetch spaghetti meme, children also appear in the get request as top level entities
+        # so we need to filter them out form the list so that we only try to delete them once
+        # because there are only 2 levels, we can distinguish children because their 'parent' field wont be null!
+        # https://github.com/ABC-COVID19/API-backend/issues/14
+        # todo: remove this after backend is fixed!
+        ctrees_list = [cat for cat in ctrees_list if cat['parent'] is None]
+        for elem in ctrees_list:
+            if 'children' in elem.keys():
+                for child in elem['children']:
+                    res = self.delete_ctree(child['id'])
+                    print(f'\tdeleted {child["itemName"]} {res.status_code}' if res.status_code == 204 else f'problem with {child["itemName"]}: {res.status_code}: {res.content}')
+                print('\tall children deleted, deleting parent next')
+
+            res = self.delete_ctree(elem['id'])
+            print(f'deleted {elem["itemName"]} {res.status_code}' if res.status_code == 204 else f'problem with {elem["itemName"]}: {res.status_code}: {res.content}')
 
     def reset_ctrees(self):
         self.delete_all_ctrees()
         self.create_ctrees()
 
     def ctrees_testhook(self):
-        self.create_atypes()
         self.create_ctrees()
-        pass
+        self.create_atypes()
