@@ -296,7 +296,6 @@ class Icam:
         return requests.delete(url=url, headers=self.headers)
 
     def delete_all_ctrees(self):
-        # todo: cant delete parent before child! this is broken
         print('deleting all ctrees!')
         ctrees_list = self.get_ctrees()
         # because of the eager fetch spaghetti meme, children also appear in the get request as top level entities

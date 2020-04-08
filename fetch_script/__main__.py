@@ -47,7 +47,7 @@ def main():
     # UNCOMMENT HERE TO auto generate CategoryTrees and ArticleTypes
     # icam.post_new_articles(pubmed.get_single_article(32219428), icam.get_srepo_id('pubmed'))
 
-    # fetch_articles_pubmed(icam, num_articles, search_term)
+    fetch_articles_pubmed(icam, num_articles, search_term)
 
 
 if __name__ == '__main__':
