@@ -146,8 +146,9 @@ class Icam:
 
     # Article Types
     # ------------------------------------------------------------------------------------------------------------------
-    def get_atypes(self):
-        res = requests.get(url=self.atypes_endpoint, headers=self.headers)
+    def get_atypes(self, query=''):
+        url = self.atypes_endpoint + query
+        res = requests.get(url=url, headers=self.headers)
         atypes = res.json()
         return atypes
 
@@ -194,8 +195,9 @@ class Icam:
 
     # Category Trees
     # ------------------------------------------------------------------------------------------------------------------
-    def get_ctrees(self):
-        res = requests.get(url=self.ctrees_endpoint, headers=self.headers)
+    def get_ctrees(self, query=''):
+        url = self.ctrees_endpoint + query
+        res = requests.get(url=url, headers=self.headers)
         ctrees = res.json()
         return ctrees
 
@@ -251,7 +253,8 @@ class Icam:
                 'Gravidez',
                 'Pediatria'
             ],
-            'destaques': []
+            'Destaques': [],
+            'Highlights': []
         }
 
         current_ctrees = self.get_ctrees()
