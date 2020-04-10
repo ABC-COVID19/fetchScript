@@ -2,7 +2,7 @@ pipeline {
     agent {
         kubernetes {
             yamlFile 'k8s/jenkins-slave.yaml'
-            defaultContainer 'python3' 
+            defaultContainer 'python3'
         }
     } 
 
@@ -17,7 +17,6 @@ pipeline {
     }
 
     environment {
-
         DEPLOYMENT_NAME = "fetch-script" 
         GIT_REPO = "github.com/ABC-COVID19/fetchScript.git"
         NAMESPACE_DEV = "icam-dev" 
@@ -26,7 +25,8 @@ pipeline {
         // SLACK_CHANNEL = '' 
         // SLACK_TEAM_DOMAIN = ''
         // SLACK_TOKEN = credentials('')
-        PROJECT_VERSION = readFile(file: 'version.txt')
+        //PROJECT_NAME = readMavenPom().getArtifactId()
+        PROJECT_VERSION = "0.0.1" //Way to Get version in python
         GIT_USER = 'jenkins-icam@protonmail.com'
         GIT_USER_NAME = 'jenkins-icam'
         //NEW_VERSION = chooseVersion("${PROJECT_VERSION}","${env.GIT_BRANCH}")
@@ -36,22 +36,25 @@ pipeline {
 
     stages {
 
-        stage('Bump Version') {
-            steps {
-                // script {
-                //     def version = readFile(file: 'version.txt')
-                //     def new_version = bumpVersion($version,"patch")
-                //     writeFile(file: 'version.txt', text: $new_version)
-                // }
-                    sh "echo The project new version is: ${PROJECT_VERSION}"
-            }
-        }
+        // stage('Recursive build Check') {
+        //     steps {
+        //         script {
+        //             if (checkCommit("updated pom version to")){
+        //                 timeout(time: 60, unit: 'SECONDS') {
+        //                     input 'Do you want to Update Version anyway?'
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
 
         stage('Build and Test') {
             steps {
-                    
+                container('python3'){
+
                     sh "docker build -f Dockerfile -t ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} ."
 
+                }
             }
         }
 
@@ -64,17 +67,18 @@ pipeline {
 		
         stage('Merge to Develop') {
             when {
-                branch "feature/*"
+                branch "addJenkinsPipe"
             }
              steps {
                         sh "git config --global user.email '${GIT_USER}'"
                         sh "git config --global user.name '${GIT_USER_NAME}'"
-                        sh "git config http.sslVerify false" //WorkAround
                         sh "git checkout -f origin/develop" 
                         sh "git merge --ff ${env.GIT_COMMIT}"
 
-                        withCredentials([usernamePassword(credentialsId: 'Jenkins-ICAM2', usernameVariable: 'username', passwordVariable: 'password')]) {
-                             sh "git push https://${username}:${password}@${GIT_REPO} HEAD:develop"
+                        withCredentials([usernamePassword(credentialsId: 'Jenkins-ICAM', usernameVariable: 'username', passwordVariable: 'password')]) {
+                            //sh "ssh-keyscan -t rsa ${GIT_HOST} >> ~/.ssh/known_hosts"
+                            //sh "ssh-agent bash -c 'ssh-add ${GIT_CREDS}; 
+                             sh "git push https://${username}:${password}@${GIT_REPO} HEAD:develop'"
                         }
             }
         }
@@ -92,13 +96,14 @@ pipeline {
 
                         sh "git config --global user.email '${GIT_USER}'"
                         sh "git config --global user.name '${GIT_USER_NAME}'"
-                        sh "git config http.sslVerify false" //WorkAround
                         sh "git checkout -f origin/master" 
                         sh "git merge --ff ${env.GIT_COMMIT}"
 
 
-                        withCredentials([usernamePassword(credentialsId: 'Jenkins-ICAM2', usernameVariable: 'username', passwordVariable: 'password')]) {
-                            sh "git push https://${username}:${password}@${GIT_REPO} HEAD:master"
+                        withCredentials([usernamePassword(credentialsId: 'Jenkins-ICAM', usernameVariable: 'username', passwordVariable: 'password')]) {
+                            //sh "ssh-keyscan -t rsa ${GIT_HOST} >> ~/.ssh/known_hosts"
+                            //sh "ssh-agent bash -c 'ssh-add ${GIT_CREDS};
+                            sh "git push https://${username}:${password}@${GIT_REPO} HEAD:master'"
 
                         }
                     }catch(err){
@@ -113,14 +118,18 @@ pipeline {
                 branch "develop"
             }
             steps {
+                container('az-kube'){
                         sh "docker tag ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest"
                         sh "docker push ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION}"
                         sh "docker push ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest"
-                        withCredentials([azureServicePrincipal('Azure_login')]) { 
-                                    sh "az login --service-principal -u ${AZURE_CLIENT_ID} -p ${AZURE_CLIENT_SECRET} -t ${AZURE_TENANT_ID}"
-                                    sh "az aks get-credentials --name icamch --resource-group icam-ch --overwrite-existing"
+                        withCredentials([
+                            string(credentialsId: 'Azure_tenant_id', variable: 'TENANT_ID'),
+                            string(credentialsId: 'Azure_client_id', variable: 'CLIENT_ID'),
+                            string(credentialsId: 'Azure_client_secret', variable: 'CLIENT_SECRET')]) { 
+                                    sh "az login --service-principal --tenant ${TENANT_ID} --username ${CLIENT_ID} --password ${CLIENT_ID}"
                                     sh "kubectl set image deployment ${DEPLOYMENT_NAME} ${DEPLOYMENT_NAME}=${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} --record -n ${NAMESPACE_DEV}"
                                 }
+                }
             }
         }
         stage('Deliver to Hub - Deploy to PROD') {
@@ -128,26 +137,32 @@ pipeline {
                 branch "master"
             }
             steps {
+                container('az-kube'){
                         sh "docker tag ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest"
                         sh "docker push ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION}"
                         sh "docker push ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest"
 
-                        withCredentials([azureServicePrincipal('Azure_login')]) { 
-                                    sh "az login --service-principal -u ${AZURE_CLIENT_ID} -p ${AZURE_CLIENT_SECRET} -t ${AZURE_TENANT_ID}"
-                                    sh "az aks get-credentials --name icamch --resource-group icam-ch --overwrite-existing"
+                        withCredentials([
+                            string(credentialsId: 'Azure_tenant_id', variable: 'TENANT_ID'),
+                            string(credentialsId: 'Azure_client_id', variable: 'CLIENT_ID'),
+                            string(credentialsId: 'Azure_client_secret', variable: 'CLIENT_SECRET')]) { 
+                                    sh "az login --service-principal --tenant ${TENANT_ID} --username ${CLIENT_ID} --password ${CLIENT_ID}"
                                     sh "kubectl set image deployment ${DEPLOYMENT_NAME} ${DEPLOYMENT_NAME}=${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} --record -n ${NAMESPACE_PROD}"
                                 }
 
 
 
+                }
             }
         }
     }
 
     post {
         always {
+            container('az-kube'){
                 sh "docker rmi ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} || true "
                 sh "docker rmi ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest || true "
+            }
             // notifySlack()
         }
         cleanup {
