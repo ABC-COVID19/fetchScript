@@ -2,7 +2,7 @@ pipeline {
     agent {
         kubernetes {
             yamlFile 'k8s/jenkins-slave.yaml'
-            defaultContainer 'python3' 
+            defaultContainer 'az-kube' 
         }
     } 
 
@@ -49,8 +49,10 @@ pipeline {
 
         stage('Build and Test') {
             steps {
-                    
+                container('python3'){
                     sh "docker build -f Dockerfile -t ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} ."
+                }
+                    
 
             }
         }
