@@ -3,7 +3,7 @@
 
 This python package gets new articles from PubMed and posts them to the ICAMApi Gateway!
 
-To use this to auto-generate ArticleTypes and CategoryTrees for testing uncomment the following line in `fetchscript/__main__.py`:
+To use this to auto-generate ArticleTypes and CategoryTrees for testing uncomment the following line in `fetchscript/__main__.py`:  
 ![](testhook.PNG)
 
 ## Setup
