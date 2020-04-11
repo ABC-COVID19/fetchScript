@@ -1,7 +1,7 @@
 FROM python:3.8.2-slim
 
 RUN apt-get update -qq
-RUN apt-get install cron git libpng-dev curl sed unzip bash dos2unix -y
+RUN apt-get install cron git libpng-dev curl sed unzip bash dos2unix vim -y
 
 COPY pubmed-cron /etc/cron.d/pubmed-cron
 RUN chmod 0644 /etc/cron.d/pubmed-cron
