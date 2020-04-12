@@ -35,7 +35,7 @@ def main():
     config.read(os.path.join(os.path.dirname(__file__), 'config.ini'))
 
     gateway = config['ICAM']['gateway_location']
-    # gateway = 'https://test.sknv.net/'
+    gatewayOnline = 'https://test.sknv.net/'
     user = config['ICAM']['user']
     password = config['ICAM']['password']
 
@@ -47,7 +47,9 @@ def main():
     # UNCOMMENT HERE TO auto generate CategoryTrees and ArticleTypes
     # icam.post_new_articles(pubmed.get_single_article(32219428), icam.get_srepo_id('pubmed'))
 
-    fetch_articles_pubmed(icam, num_articles, search_term)
+    # fetch_articles_pubmed(icam, num_articles, search_term)
+
+    print(icam.get_revisions())
 
 
 if __name__ == '__main__':

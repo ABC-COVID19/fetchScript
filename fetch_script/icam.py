@@ -3,8 +3,11 @@ import json
 
 
 class Icam:
+    """
+    Python inteface for the ICAM API
+    """
 
-    def __init__(self, gateway, user, password):
+    def __init__(self, gateway: str, user: str, password: str):
 
         self.auth_endpoint = gateway + 'api/authenticate'
 
@@ -12,6 +15,7 @@ class Icam:
         self.repos_endpoint = gateway + 'services/icamapi/api/source-repos'
         self.atypes_endpoint = gateway + 'services/icamapi/api/article-types'
         self.ctrees_endpoint = gateway + 'services/icamapi/api/category-trees'
+        self.revisions_endpoint = gateway + 'services/icamapi/api/revisions'
 
         self.user = user
         self.password = password
@@ -24,6 +28,12 @@ class Icam:
         }
 
     def authenticate(self):
+        """
+        This method is called by the constructor to get the
+         auth token for the Authorization: Bearer xxx HTTP header
+
+        :return: String with auth token
+        """
         data = json.dumps({
             'username': self.user,
             'password': self.password
@@ -31,9 +41,59 @@ class Icam:
         res = requests.post(self.auth_endpoint, data=data, headers={'Content-Type': 'application/json'})
         return res.json()['id_token']
 
+    # General
+    # ------------------------------------------------------------------------------------------------------------------
+    def get_all_paginated(self, endpoint):
+        """
+        Articles, Revisions and Newsletters are paginated.
+        This functions gets all entities by progressing through the page links.
+
+        ICAM API requestAllArticles replies based on pages, with links to the next, previous, first and last page.
+
+        So we must get the links from the http header, add all articles on the current page to the final list, and
+        move on to the next page. This is done until endpoint matches the url for the last page.
+
+        :return: a list of dicts
+        """
+        # Gets first page of articles and respective links
+        res = requests.get(url=endpoint, headers=self.headers)
+        entities = res.json()
+
+        # Only try this if there is a links header to avoid exceptions!
+        if res.links:
+
+            # Set our loop control variable
+            is_last_page = False
+            # Keep getting articles until we reach the last page
+            while not is_last_page:
+                # If there is a page after this one
+                if 'next' in res.links.keys():
+
+                    # Set current_url to the next page
+                    endpoint = res.links['next']['url']
+
+                    # Update res and get articles from the new current_url
+                    res = requests.get(url=endpoint, headers=self.headers)
+                    page_entities = res.json()
+
+                    # Append the new articles to our global article list
+                    entities += page_entities
+
+                # If there is no next page, set control variable to exit loop
+                else:
+                    is_last_page = True
+        return entities
+
+
     # Source Repos
     # ------------------------------------------------------------------------------------------------------------------
-    def get_srepo_id(self, item_name):
+    def get_srepo_id(self, item_name: str):
+        """
+        Tries to get Source Repo ID for the item_name passed in.
+
+        :param item_name: Source Repo name
+        :return: String with the Source Repo ID
+        """
         res = requests.get(self.repos_endpoint, headers=self.headers)
         repos = res.json()
         for elem in repos:
@@ -50,46 +110,7 @@ class Icam:
     # Articles
     # ------------------------------------------------------------------------------------------------------------------
     def get_articles(self):
-        """
-        This function returns a list where every article on icam is represented as a dict.
-        ICAM API request all articles replies based on pages, with links to the next, previous, first and last page.
-
-        So we must get the links from the http header, add all articles on the current page to the final list, and
-        move on to the next page. This is done until current_url matches the url for the last page.
-
-        :return: a list with dicts representing each article on icam's DB
-        """
-        # Sets the current_url to the api endpoint
-        current_url = self.articles_endpoint
-
-        # Gets first page of articles and respective links
-        res = requests.get(url=current_url, headers=self.headers)
-        articles = res.json()
-
-        # Only try this if there is a links header to avoid exceptions!
-        if res.links:
-
-            # Set our loop control variable
-            is_last_page = False
-            # Keep getting articles until we reach the last page
-            while not is_last_page:
-                # If there is a page after this one
-                if 'next' in res.links.keys():
-
-                    # Set current_url to the next page
-                    current_url = res.links['next']['url']
-
-                    # Update res and get articles from the new current_url
-                    res = requests.get(url=current_url, headers=self.headers)
-                    page_articles = res.json()
-
-                    # Append the new articles to our global article list
-                    articles += page_articles
-
-                # If there is no next page, set control variable to exit loop
-                else:
-                    is_last_page = True
-        return articles
+        return self.get_all_paginated(self.articles_endpoint)
 
     def get_articles_ids(self):
         articles = self.get_articles()
@@ -321,3 +342,36 @@ class Icam:
     def ctrees_testhook(self):
         self.create_ctrees()
         self.create_atypes()
+
+    # Revisions
+    # --------------------------------------------------------------------------------------------------------------
+
+    def get_revisions(self):
+        return self.get_all_paginated(self.revisions_endpoint)
+
+    def get_revisions_ids(self):
+        revs = self.get_revisions()
+        id_list = [elem['id'] for elem in revs]
+        return id_list
+
+    def get_revision_by_id(self, rev_id: int):
+        url = self.revisions_endpoint + '/' + str(rev_id)
+        res = requests.get(url=url, headers=self.headers)
+        return res.json()
+
+    def post_new_revision(self, revision):
+        return requests.post(url=self.revisions_endpoint, data=json.dumps(revision), headers=self.headers)
+
+    def delete_revision(self, rev_id):
+        url = self.revisions_endpoint + '/{}'.format(rev_id)
+        return requests.delete(url=url, headers=self.headers)
+
+    def delete_all_revisions(self):
+        print('deleting all revisions!')
+        id_list = self.get_revisions_ids()
+        for elem in id_list:
+            r = self.delete_revision(elem)
+            if r.status_code != 204:
+                print('deleting {}: abnormal status {}'.format(elem, r.status_code))
+            else:
+                print(f'deleted revision id #{elem}')

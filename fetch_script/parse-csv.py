@@ -9,18 +9,59 @@ import json
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.ini'))
 
-# gateway = config['ICAM']['gateway_location']
-gateway = 'https://test.sknv.net/'
+# set gateway here
+gateway = config['ICAM']['gateway_location']
+# gateway = 'https://test.sknv.net/'
+# gateway = 'https://api.dev.icam.org.pt/'
 user = config['ICAM']['user']
 password = config['ICAM']['password']
 
 icam = Icam(gateway, user, password)
 
-dry_run = True
+# false to actually do the post requests, true to just test
+dry_run = False
+
+# always false
+special_post = False
+
+# this line adds categories and Article types
+icam.ctrees_testhook()
+
+# uncomment here to delete all revisions before posting them again
+# icam.delete_all_revisions()
 
 
 def get_atype_id(atype):
     print('\t\t\tGenerating atype:')
+    print(f'\t\t\t\t{atype}')
+    strip = atype.strip()[0]
+    try:
+        int(strip)
+        print('\t\t\t\tIs INT!')
+        return get_atype_id_int(atype)
+    except ValueError:
+        print('\t\t\t\tIs STR!')
+        return get_atype_id_str(atype)
+
+
+def get_atype_id_int(atype):
+    chave_atypes = ['Meta-Análise', 'Revisão Sistemática', 'RCT', 'Estudo de Coorte', 'Estudo Caso-controlo',
+                    'Estudo de Prevalência', 'Série de casos', 'Estudo de Caso',
+                    'Estudo Experimental/Modelos Matemáticos', 'Revisão não sistemática',
+                    'Editorial/Opinião/Comunicação']
+
+    alist = atype.replace(' ', '').split(';')
+    print(f'\t\t\t\talist int: {alist}')
+    t = alist[0]
+    res = icam.get_atypes('?itemName.contains=' + chave_atypes[int(t) - 1])
+    print(f'\t\t\t\tres: {res}')
+    if res:
+        return res[0]['id']
+    else:
+        return 0
+
+
+def get_atype_id_str(atype):
     print('\t\t\t\t', atype)
     atype = atype.split(';')[0]
     cut = atype[:-len(atype) // 3]
@@ -73,7 +114,7 @@ def get_ctrees_id_int(tema):
     endvalue = []
     print(f'\t\t\t\ttlist int: {tlist}')
     for t in tlist:
-        res = icam.get_ctrees('?itemName.contains=' + chave_cat[int(t)])
+        res = icam.get_ctrees('?itemName.contains=' + chave_cat[int(t)-1])
         print(f'\t\t\t\tres: {res}')
         if res:
             endvalue.append({"id": res[0]['id']})
@@ -131,7 +172,10 @@ def do_the_post(ro: dict, pubmed_id):
     elif not dry_run:
         res = icam.post_new_articles(pubmed.get_single_article(pubmed_id), icam.get_srepo_id('pubmed'))
         adict = res.json()
-        print(f'\tNo such article, posted with id #{adict["id"]}')
+        if 'id' in adict.keys():
+            print(f'\tNo such article, posted with id #{adict["id"]}')
+        else:
+            print(f'\tError: {adict}')
     else:
         adict = {"id": 0}
         print('\tDRY-RUN: no article')
@@ -147,7 +191,7 @@ def do_the_post(ro: dict, pubmed_id):
             "article": {"id": article_id},
             "reviewState": "Accepted",
             "reviewedByPeer": True if 'Sim' in ro['reviewedByPeer'] else False,
-            "reviewer": ro["reviewer"],
+            "reviewer": ro["autor"] + ' / ' + ro["revisor"],
             "summary": get_summary(ro),
             "title": ro["title"]
         }
@@ -162,9 +206,12 @@ def do_the_post(ro: dict, pubmed_id):
             if cat:
                 revision["ctrees"] = cat
 
-        atype = get_atype_id(ro['atype']) if (ro['atype'] and not ro['atype'].isspace()) else 0
-        if atype:
-            revision["atype"] = {"id": atype}
+        if 'atype' in ro.keys():
+            atype = get_atype_id(ro['atype']) if (ro['atype'] and not ro['atype'].isspace()) else 0
+            if atype:
+                revision["atype"] = {"id": atype}
+        else:
+            print('NO ATYPE')
 
         if "returnNotes" in ro.keys():
             notes = ro['returnNotes']
@@ -184,9 +231,7 @@ def do_the_post(ro: dict, pubmed_id):
         print("\tWon't generate revision!")
 
 
-# icam.ctrees_testhook()
-
-with open('final07apr.csv', encoding='utf-8') as csv_file:
+with open('newRevs.csv', encoding='utf-8') as csv_file:
     if dry_run:
         print('------------------')
         print('|----DRY--RUN----|')
@@ -214,23 +259,22 @@ with open('final07apr.csv', encoding='utf-8') as csv_file:
             parsed_row = {}
 
             # for each row of the csv fill the dict with the elements
-            for elem in title_row:
-                parsed_row[elem] = row[title_row.index(elem)]
-            with open('prows.txt', 'a', encoding='utf-8') as prows:
-                prows.write(str(parsed_row))
-                prows.write('\n')
+            for elem in row:
+                parsed_row[title_row[row.index(elem)]] = elem
+            print(parsed_row)
 
-            '''
             # if article has pubmed id
-            if 'pubmedid' in parsed_row.keys():
+            if 'pubmedid' in parsed_row.keys() and not special_post:
                 if parsed_row['pubmedid']:
                     do_the_post(parsed_row, parsed_row['pubmedid'])
                 else:
                     print(f'no pubmed id on #{parsed_row["id"] if "id" in parsed_row.keys() else parsed_row}')
-            else:
+            elif parsed_row['id'] == '50' and special_post:
+                print('special 50')
+                do_the_post(parsed_row, '12')
+            elif not special_post:
                 print(f'no pubmed key on id #{parsed_row["id"] if "id" in parsed_row.keys() else parsed_row}')
             line_count += 1
-            '''
 
     # out of the row loops
     print(f'Processed {line_count} lines.')
