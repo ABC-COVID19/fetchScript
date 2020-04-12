@@ -1,6 +1,6 @@
 import csv
-from fetch_script import pubmed
-from fetch_script.icam import Icam
+import pubmed
+from icam import Icam
 import configparser
 import os
 import requests
@@ -19,7 +19,7 @@ password = config['ICAM']['password']
 icam = Icam(gateway, user, password)
 
 # false to actually do the post requests, true to just test
-dry_run = False
+dry_run = True
 
 # always false
 special_post = False
