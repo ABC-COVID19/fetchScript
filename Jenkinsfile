@@ -26,31 +26,28 @@ pipeline {
         // SLACK_CHANNEL = '' 
         // SLACK_TEAM_DOMAIN = ''
         // SLACK_TOKEN = credentials('')
-        PROJECT_VERSION = readFile(file: 'version.txt')
         GIT_USER = 'jenkins-icam@protonmail.com'
         GIT_USER_NAME = 'jenkins-icam'
-        //NEW_VERSION = chooseVersion("${PROJECT_VERSION}","${env.GIT_BRANCH}")
-        DEBUG_MODE = '-q' // "-q" (quiet)  "-X" (verbose) 
+        PROJECT_VERSION = readFile(file: 'version.txt').trim()
+        NEW_VERSION = bumpVersion("${PROJECT_VERSION}","patch")
 
     }
 
     stages {
 
-        stage('Bump Version') {
+        stage('Bump Version on file') {
             steps {
-                // script {
-                //     def version = readFile(file: 'version.txt')
-                //     def new_version = bumpVersion($version,"patch")
-                //     writeFile(file: 'version.txt', text: $new_version)
-                // }
-                    sh "echo The project new version is: ${PROJECT_VERSION}"
+                script {
+                     writeFile(file: 'version.txt', text: "${NEW_VERSION}")
+                }
+                     sh "echo The new version will be: ${NEW_VERSION}"
             }
         }
 
         stage('Build and Test') {
             steps {
                 container('python3'){
-                    sh "docker build -f Dockerfile -t ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} ."
+                    sh "docker build -f Dockerfile -t ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${NEW_VERSION} ."
                 }
                     
 
@@ -115,13 +112,13 @@ pipeline {
                 branch "develop"
             }
             steps {
-                        sh "docker tag ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest"
-                        sh "docker push ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION}"
+                        sh "docker tag ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${NEW_VERSION} ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest"
+                        sh "docker push ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${NEW_VERSION}"
                         sh "docker push ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest"
                         withCredentials([azureServicePrincipal('Azure_login')]) { 
                                     sh "az login --service-principal -u ${AZURE_CLIENT_ID} -p ${AZURE_CLIENT_SECRET} -t ${AZURE_TENANT_ID}"
                                     sh "az aks get-credentials --name icamch --resource-group icam-ch --overwrite-existing"
-                                    sh "kubectl set image deployment ${DEPLOYMENT_NAME} ${DEPLOYMENT_NAME}=${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} --record -n ${NAMESPACE_DEV}"
+                                    sh "kubectl set image deployment ${DEPLOYMENT_NAME} ${DEPLOYMENT_NAME}=${DOCKER_HUB}/${DEPLOYMENT_NAME}:${NEW_VERSION} --record -n ${NAMESPACE_DEV}"
                                 }
             }
         }
@@ -130,14 +127,14 @@ pipeline {
                 branch "master"
             }
             steps {
-                        sh "docker tag ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest"
-                        sh "docker push ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION}"
+                        sh "docker tag ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${NEW_VERSION} ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest"
+                        sh "docker push ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${NEW_VERSION}"
                         sh "docker push ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest"
 
                         withCredentials([azureServicePrincipal('Azure_login')]) { 
                                     sh "az login --service-principal -u ${AZURE_CLIENT_ID} -p ${AZURE_CLIENT_SECRET} -t ${AZURE_TENANT_ID}"
                                     sh "az aks get-credentials --name icamch --resource-group icam-ch --overwrite-existing"
-                                    sh "kubectl set image deployment ${DEPLOYMENT_NAME} ${DEPLOYMENT_NAME}=${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} --record -n ${NAMESPACE_PROD}"
+                                    sh "kubectl set image deployment ${DEPLOYMENT_NAME} ${DEPLOYMENT_NAME}=${DOCKER_HUB}/${DEPLOYMENT_NAME}:${NEW_VERSION} --record -n ${NAMESPACE_PROD}"
                                 }
 
 
@@ -148,7 +145,7 @@ pipeline {
 
     post {
         always {
-                sh "docker rmi ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${PROJECT_VERSION} || true "
+                sh "docker rmi ${DOCKER_HUB}/${DEPLOYMENT_NAME}:${NEW_VERSION} || true "
                 sh "docker rmi ${DOCKER_HUB}/${DEPLOYMENT_NAME}:latest || true "
             // notifySlack()
         }
