@@ -5,9 +5,13 @@ import json
 class Icam:
 
     def __init__(self, gateway, user, password):
+
+        self.auth_endpoint = gateway + 'api/authenticate'
+
         self.articles_endpoint = gateway + 'services/icamapi/api/articles'
         self.repos_endpoint = gateway + 'services/icamapi/api/source-repos'
-        self.auth_endpoint = gateway + 'api/authenticate'
+        self.atypes_endpoint = gateway + 'services/icamapi/api/article-types'
+        self.ctrees_endpoint = gateway + 'services/icamapi/api/category-trees'
 
         self.user = user
         self.password = password
@@ -27,6 +31,8 @@ class Icam:
         res = requests.post(self.auth_endpoint, data=data, headers={'Content-Type': 'application/json'})
         return res.json()['id_token']
 
+    # Source Repos
+    # ------------------------------------------------------------------------------------------------------------------
     def get_srepo_id(self, item_name):
         res = requests.get(self.repos_endpoint, headers=self.headers)
         repos = res.json()
@@ -34,13 +40,15 @@ class Icam:
             if elem['itemName'] == item_name:
                 return elem['id']
 
-        print('No sourceRepo for pubmed! Creating...')
+        print('No sourceRepo for {}! Creating...'.format(item_name))
         res = requests.post(self.repos_endpoint, data=json.dumps({'active': True, 'itemName': item_name}),
                             headers=self.headers)
         source_repo = res.json()
         print('Created sourceRepo ', source_repo)
         return source_repo['id']
 
+    # Articles
+    # ------------------------------------------------------------------------------------------------------------------
     def get_articles(self):
         """
         This function returns a list where every article on icam is represented as a dict.
@@ -112,8 +120,7 @@ class Icam:
 
     def post_new_articles(self, article, srepo_id):
         article['srepo'] = {'id': srepo_id}
-        data = json.dumps(article)
-        return requests.post(url=self.articles_endpoint, data=data, headers=self.headers)
+        return requests.post(url=self.articles_endpoint, data=json.dumps(article), headers=self.headers)
 
     def delete_article(self, article_id):
         url = self.articles_endpoint + '/{}'.format(article_id)
@@ -136,3 +143,168 @@ class Icam:
                 dupes.append(elem['id'])
                 articles.pop(articles.index(elem))
         return dupes
+
+    # Article Types
+    # ------------------------------------------------------------------------------------------------------------------
+    def get_atypes(self):
+        res = requests.get(url=self.atypes_endpoint, headers=self.headers)
+        atypes = res.json()
+        print(atypes)
+        return atypes
+
+    def get_atypes_ids(self):
+        atypes = self.get_atypes()
+        id_list = [elem['id'] for elem in atypes]
+        print(id_list)
+        return id_list
+
+    def create_atypes(self):
+        atypes = ['Meta-Análise', 'Revisão Sistemática', 'RCT', 'Estudo de Coorte', 'Estudo Caso-controlo',
+                  'Estudo de Prevalência', 'Série de casos', 'Estudo de Caso',
+                  'Estudo Experimental/Modelos Matemáticos', 'Revisão não sistemática', 'Editorial/Opinião/Comunicação']
+
+        current_atypes = self.get_atypes()
+        print(current_atypes)
+        for title in atypes:
+            if not any(d['itemName'] == title for d in current_atypes):
+                print(f'atype: {title} does not exist, creating...')
+                atype_dict = {
+                    'active': True,
+                    'itemName': title
+                }
+                res = requests.post(url=self.atypes_endpoint, data=json.dumps(atype_dict), headers=self.headers)
+                print(f'response: {res.status_code}')
+            else:
+                print(f'atype: {title} already exists, skipping...')
+
+    def delete_atype(self, atype_id):
+        url = self.atypes_endpoint + '/{}'.format(atype_id)
+        return requests.delete(url=url, headers=self.headers)
+
+    def delete_all_atypes(self):
+        print('deleting all atypes!')
+        id_list = self.get_atypes_ids()
+        for elem in id_list:
+            r = self.delete_atype(elem)
+            if r.status_code != 204:
+                print('deleting {}: abnormal status {}'.format(elem, r.status_code))
+
+    def reset_atypes(self):
+        self.delete_all_atypes()
+        self.create_atypes()
+
+    # Category Trees
+    # ------------------------------------------------------------------------------------------------------------------
+    def get_ctrees(self):
+        res = requests.get(url=self.ctrees_endpoint, headers=self.headers)
+        ctrees = res.json()
+        print(f'get_ctrees: {ctrees}')
+        return ctrees
+
+    def get_ctrees_ids(self):
+        ctrees = self.get_ctrees()
+        id_list = [elem['id'] for elem in ctrees]
+        print(f'get_ctrees_ids: {id_list}')
+        return id_list
+
+    def create_ctrees(self):
+        ctrees = {
+            'Epidemiologia': [
+                'Indicadores',
+                'Previsões e Modelos Matemáticos',
+                'Vias de Transmissão',
+                'Características Infecciosas',
+                'Sobrevivência do Vírus no Ambiente'
+            ],
+            'Etiologia e Fisiopatologia': [
+                'Diferenças entre os Coronavírus',
+                'Estrutura e Sequência Genética',
+                'Mecanismos de Infeção',
+                'Estadios da Doença'
+            ],
+            'Fatores de Risco': [
+                'Género e Grupos Etários',
+                'Comorbilidades',
+                'Outros'
+            ],
+            'Clínica e Diagnóstico': [
+                'Apresentação Clínica, Evolução e Doenças Associadas',
+                'Testes Laboratoriais de Diagnóstico',
+                'Imagiologia',
+                'Outros Marcadores Laboratoriais'
+            ],
+            'Tratamento': [
+                'Terapêutica de Suporte',
+                'Oxigenoterapia, Suporte Ventilatório, Proning, ECMO',
+                'Terapêuticas Experimentais e Ensaios Clínicos'
+            ],
+            'Prevenção': [
+                'Meio Hospitalar e Cuidados de Saúde Primários',
+                'Comunidade',
+                'Vacinas'
+            ],
+            'Prognóstico': [
+                'Marcadores Clínicos, Laboratoriais e Imagiológicos',
+                'Imunidade',
+                'Outros'
+            ],
+            'Populações Especiais': [
+                'Imunossupressão',
+                'Gravidez',
+                'Pediatria'
+            ],
+            'destaques': []
+        }
+
+        current_ctrees = self.get_ctrees()
+        print(f'current ctrees: {current_ctrees}')
+        for area in ctrees.keys():
+
+            if not any(d['itemName'] == area for d in current_ctrees):
+                print(f'ctree area: {area} does not exist, creating...')
+                atype_dict = {
+                    'active': True,
+                    'itemName': area,
+                }
+                res = requests.post(url=self.ctrees_endpoint, data=json.dumps(atype_dict), headers=self.headers)
+                current_area_id = res.json()['id']
+                print(f'response {res.status_code}: {res.content}')
+
+                if ctrees[area]:
+                    print('generating children')
+                    for child in ctrees[area]:
+                        if not any(d['itemName'] == child for d in current_ctrees):
+                            print(f'ctree child: {child} does not exist, creating...')
+                            child_dict = {
+                                'active': True,
+                                'itemName': child,
+                                'parent': {"id": current_area_id}
+                            }
+                            res = requests.post(url=self.ctrees_endpoint, data=json.dumps(child_dict), headers=self.headers)
+                            print(f'response {res.status_code}' if res.status_code == 201 else f'response {res.status_code}: {res.content}')
+                        else:
+                            print(f'atype: {child} already exists, skipping...')
+            else:
+                print(f'atype: {area} already exists, skipping...')
+
+    def delete_ctree(self, ctree_id):
+        url = self.ctrees_endpoint + '/{}'.format(ctree_id)
+        return requests.delete(url=url, headers=self.headers)
+
+    def delete_all_ctrees(self):
+        # todo: cant delete parent before child! this is broken
+        print('deleting all ctrees!')
+        id_list = self.get_ctrees_ids()
+        for elem in id_list:
+            r = self.delete_ctree(elem)
+            if r.status_code != 204:
+                print('deleting {}: abnormal status {}'.format(elem, r.status_code))
+
+    def reset_ctrees(self):
+        self.delete_all_ctrees()
+        self.create_ctrees()
+
+    def ctrees_testhook(self):
+        self.create_atypes()
+        self.create_ctrees()
+        pass

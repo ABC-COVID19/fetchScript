@@ -22,7 +22,7 @@ def fetch_articles_pubmed(icam, num_articles, search_term):
     print(new, 'new articles!')
     print('starting push!' if new else 'no new articles!')
     for entry in new_articles_ids:
-
+        print(f'submitting pubmed id #{entry}')
         r = icam.post_new_articles(pubmed.get_single_article(entry), icam.get_srepo_id('pubmed'))
         # If we didn't get a 201 back, log the problem to console
         if r.status_code != 201:
@@ -42,6 +42,9 @@ def main():
     search_term = config['PUBMED']['search_term']
 
     icam = Icam(gateway, user, password)
+
+    # UNCOMMENT HERE TO auto generate CategoryTrees and ArticleTypes
+    # icam.ctrees_testhook()
 
     fetch_articles_pubmed(icam, num_articles, search_term)
 

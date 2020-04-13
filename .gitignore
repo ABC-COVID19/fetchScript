@@ -1,6 +1,9 @@
 # PyCharm
 .idea/
 
+# Test files and other projects
+icam_import/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
