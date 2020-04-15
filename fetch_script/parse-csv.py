@@ -1,6 +1,6 @@
 import csv
-import pubmed
-from icam import Icam
+from fetch_script import pubmed
+from fetch_script.icam import Icam
 import configparser
 import os
 import requests
@@ -10,19 +10,21 @@ config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.ini'))
 
 # set gateway here
-gateway = config['ICAM']['gateway_location']
+# gateway = config['ICAM']['gateway_location']
 # gateway = 'https://test.sknv.net/'
-# gateway = 'https://api.dev.icam.org.pt/'
+gateway = 'https://api.icam.org.pt/'
 user = config['ICAM']['user']
 password = config['ICAM']['password']
 
 icam = Icam(gateway, user, password)
+rev_file = 'newRevs.csv'
 
 # false to actually do the post requests, true to just test
-dry_run = True
+dry_run = False
 
 # always false
 special_post = False
+# icam.clean_db()
 
 # this line adds categories and Article types
 icam.ctrees_testhook()
@@ -164,22 +166,41 @@ def get_keywords(ro: dict):
 
 
 def do_the_post(ro: dict, pubmed_id):
+    special = True if pubmed_id == 0 else False
     print(f'Checking if pubmed #{pubmed_id} exists: ')
-    res = requests.get(url=icam.articles_endpoint + '?repoArticleId.equals=' + pubmed_id, headers=icam.headers)
-    if res.json():
-        adict = res.json()[0]
-        print(f'\tFound article with id #{adict["id"]}')
-    elif not dry_run:
-        res = icam.post_new_articles(pubmed.get_single_article(pubmed_id), icam.get_srepo_id('pubmed'))
-        adict = res.json()
-        if 'id' in adict.keys():
-            print(f'\tNo such article, posted with id #{adict["id"]}')
+    if special:
+        res = requests.get(url=icam.articles_endpoint + f'?repoArticleId.equals={ro["id"]}&srepoId.equals={icam.get_srepo_id("special")}', headers=icam.headers)
+        if res.json():
+            adict = res.json()[0]
+            print(f'\tFound article with id #{adict["id"]}')
+        elif not dry_run:
+            res = icam.post_new_articles(get_special_article(ro), icam.get_srepo_id('special'))
+            adict = res.json()
+            if 'id' in adict.keys():
+                print(f'\tNo such article, posted SPECIAL with id #{adict["id"]}')
+            else:
+                print(f'\tError: {adict}')
         else:
-            print(f'\tError: {adict}')
+            adict = {"id": 0}
+            print('\tDRY-RUN: no article')
+            print(f'\tNo such article, posted SPECIAL with id #{adict["id"]}')
+
     else:
-        adict = {"id": 0}
-        print('\tDRY-RUN: no article')
-        print(f'\tNo such article, posted with id #{adict["id"]}')
+        res = requests.get(url=icam.articles_endpoint + '?repoArticleId.equals=' + pubmed_id, headers=icam.headers)
+        if res.json():
+            adict = res.json()[0]
+            print(f'\tFound article with id #{adict["id"]}')
+        elif not dry_run:
+            res = icam.post_new_articles(pubmed.get_single_article(pubmed_id), icam.get_srepo_id('pubmed'))
+            adict = res.json()
+            if 'id' in adict.keys():
+                print(f'\tNo such article, posted with id #{adict["id"]}')
+            else:
+                print(f'\tError: {adict}')
+        else:
+            adict = {"id": 0}
+            print('\tDRY-RUN: no article')
+            print(f'\tNo such article, posted with id #{adict["id"]}')
 
     if res.status_code == 201 or res.status_code == 200:
         article_id = adict['id']
@@ -231,14 +252,51 @@ def do_the_post(ro: dict, pubmed_id):
         print("\tWon't generate revision!")
 
 
-with open('newRevs.csv', encoding='utf-8') as csv_file:
+def get_special_article(ro):
+
+    dict_out = {
+        'repoArticleId': parsed_row['id'],
+        'reviewState': 'Hold'  # Set the review state to Hold
+    }
+
+    date = ro['articleDate']
+    if date:
+        # yyyy-mm-dd
+        print(f'\tDate: {date}')
+        temp = date.split('-')
+        d, m, y = temp[0], temp[1], temp[2]
+        parsed_date = '{}-{}-{}'.format('20' + y if len(y) == 2 else y, '0' + m if len(m) == 1 else m, '0' + d if len(d) == 1 else d)
+        print(f'\tParsed Date: {parsed_date}')
+        dict_out['repoDate'] = parsed_date
+        dict_out['articleDate'] = parsed_date
+        dict_out['fetchDate'] = parsed_date
+
+    if ro['articleTitle']:
+        dict_out['articleTitle'] = ro['articleTitle']
+
+    if ro['articleAbstract']:
+        dict_out['articleAbstract'] = ro['articleAbstract']
+
+    if ro['articleJournal']:
+        dict_out['articleJournal'] = ro['articleJournal']
+
+    if ro['articleDoi']:
+        dict_out['articleDoi'] = ro['articleDoi']
+
+    if ro['citation']:
+        dict_out['citation'] = ro['citation']
+
+    return dict_out
+
+
+with open(rev_file, encoding='utf-8') as csv_file:
     if dry_run:
         print('------------------')
         print('|----DRY--RUN----|')
         print('------------------')
 
     # open file
-    csv_reader = csv.reader(csv_file, delimiter='|', )
+    csv_reader = csv.reader(csv_file, delimiter='|')
 
     # init vars
     line_count = 0
@@ -252,6 +310,7 @@ with open('newRevs.csv', encoding='utf-8') as csv_file:
             title_row = row
             title_row[0] = 'id'
             line_count += 1
+            print(title_row)
 
         # for each row not the title
         else:
@@ -259,8 +318,8 @@ with open('newRevs.csv', encoding='utf-8') as csv_file:
             parsed_row = {}
 
             # for each row of the csv fill the dict with the elements
-            for elem in row:
-                parsed_row[title_row[row.index(elem)]] = elem
+            for elem in title_row:
+                parsed_row[elem] = row[title_row.index(elem)]
             print(parsed_row)
 
             # if article has pubmed id
@@ -269,6 +328,8 @@ with open('newRevs.csv', encoding='utf-8') as csv_file:
                     do_the_post(parsed_row, parsed_row['pubmedid'])
                 else:
                     print(f'no pubmed id on #{parsed_row["id"] if "id" in parsed_row.keys() else parsed_row}')
+                    print('POSTING SPECIAL')
+                    do_the_post(parsed_row, 0)
             elif parsed_row['id'] == '50' and special_post:
                 print('special 50')
                 do_the_post(parsed_row, '12')
@@ -278,6 +339,9 @@ with open('newRevs.csv', encoding='utf-8') as csv_file:
 
     # out of the row loops
     print(f'Processed {line_count} lines.')
+
+
+
 
 '''
 gerar o article

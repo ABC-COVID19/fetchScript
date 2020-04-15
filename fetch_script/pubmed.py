@@ -154,6 +154,16 @@ def get_single_article(pubmed_id):
         except Exception as e:
             # todo: logging!
             print('error processing title of {}: {}'.format(pubmed_id, e))
+            print('trying VernacularTitle')
+            try:
+                title = ' '.join([title.text for title in tree.xpath('//vernaculartitle')])
+                print(f'Vernacular: {title}')
+                # If the title length exceeds 255, cut it and add '[...]' at the end
+                if len(title) > 255:
+                    title = title[0:250] + '[...]'
+                dict_out['articleTitle'] = title
+            except Exception as e:
+                print('vernacular title failed: {}'.format(e))
 
     # Get articleAbstract
     abstract_tree = tree.xpath('//abstract/abstracttext')

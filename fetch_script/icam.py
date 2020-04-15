@@ -1,5 +1,6 @@
 import requests
 import json
+from bs4 import BeautifulSoup
 
 
 class Icam:
@@ -70,8 +71,7 @@ class Icam:
                 if 'next' in res.links.keys():
 
                     # Set current_url to the next page
-                    endpoint = res.links['next']['url']
-
+                    endpoint = res.links['next']['url'].replace('/api/', '/services/icamapi/api/')
                     # Update res and get articles from the new current_url
                     res = requests.get(url=endpoint, headers=self.headers)
                     page_entities = res.json()
@@ -84,6 +84,11 @@ class Icam:
                     is_last_page = True
         return entities
 
+    def clean_db(self):
+        self.delete_all_revisions()
+        self.delete_all_ctrees()
+        self.delete_all_atypes()
+        self.delete_all_articles()
 
     # Source Repos
     # ------------------------------------------------------------------------------------------------------------------
@@ -153,7 +158,9 @@ class Icam:
         for elem in id_list:
             r = self.delete_article(elem)
             if r.status_code != 204:
-                print('deleting {}: abnormal status {}'.format(elem, r.status_code))
+                print('\tdeleting {}: abnormal status {}'.format(elem, r.status_code))
+            else:
+                print(f'\tdeleted article id #{elem}')
 
     def find_duplicate_pubmed_ids(self):
         articles = self.get_articles()
@@ -176,7 +183,6 @@ class Icam:
     def get_atypes_ids(self):
         atypes = self.get_atypes()
         id_list = [elem['id'] for elem in atypes]
-        print(id_list)
         return id_list
 
     def create_atypes(self):
@@ -208,7 +214,9 @@ class Icam:
         for elem in id_list:
             r = self.delete_atype(elem)
             if r.status_code != 204:
-                print('deleting {}: abnormal status {}'.format(elem, r.status_code))
+                print('\tdeleting {}: abnormal status {}'.format(elem, r.status_code))
+            else:
+                print(f'\tdeleted atype id #{elem}')
 
     def reset_atypes(self):
         self.delete_all_atypes()
@@ -326,14 +334,16 @@ class Icam:
         # todo: remove this after backend is fixed!
         ctrees_list = [cat for cat in ctrees_list if cat['parent'] is None]
         for elem in ctrees_list:
+            print(f'\tDeleting {elem["itemName"]}...')
             if 'children' in elem.keys():
+                print('\t\tChildren found! Deleting children first!')
                 for child in elem['children']:
                     res = self.delete_ctree(child['id'])
-                    print(f'\tdeleted {child["itemName"]} {res.status_code}' if res.status_code == 204 else f'problem with {child["itemName"]}: {res.status_code}: {res.content}')
-                print('\tall children deleted, deleting parent next')
+                    print(f'\t\t\tdeleted {child["itemName"]} {res.status_code}' if res.status_code == 204 else f'\t\t\tProblem with {child["itemName"]}: {res.status_code}: {res.content}')
+
 
             res = self.delete_ctree(elem['id'])
-            print(f'deleted {elem["itemName"]} {res.status_code}' if res.status_code == 204 else f'problem with {elem["itemName"]}: {res.status_code}: {res.content}')
+            print(f'\t\tdeleted {elem["itemName"]} {res.status_code}' if res.status_code == 204 else f'\t\tproblem with {elem["itemName"]}: {res.status_code}: {res.content}')
 
     def reset_ctrees(self):
         self.delete_all_ctrees()
@@ -372,6 +382,6 @@ class Icam:
         for elem in id_list:
             r = self.delete_revision(elem)
             if r.status_code != 204:
-                print('deleting {}: abnormal status {}'.format(elem, r.status_code))
+                print('\tdeleting {}: abnormal status {}'.format(elem, r.status_code))
             else:
-                print(f'deleted revision id #{elem}')
+                print(f'\tdeleted revision id #{elem}')
