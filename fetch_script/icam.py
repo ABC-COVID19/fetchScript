@@ -71,7 +71,8 @@ class Icam:
                 if 'next' in res.links.keys():
 
                     # Set current_url to the next page
-                    endpoint = res.links['next']['url'].replace('/api/', '/services/icamapi/api/')
+                    # todo: not on localhost
+                    endpoint = res.links['next']['url'] #.replace('/api/', '/services/icamapi/api/')
                     # Update res and get articles from the new current_url
                     res = requests.get(url=endpoint, headers=self.headers)
                     page_entities = res.json()

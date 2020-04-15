@@ -5,14 +5,15 @@ import configparser
 import os
 import requests
 import json
+import datetime
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), 'config.ini'))
 
 # set gateway here
-# gateway = config['ICAM']['gateway_location']
+gateway = config['ICAM']['gateway_location']
 # gateway = 'https://test.sknv.net/'
-gateway = 'https://api.icam.org.pt/'
+# gateway = 'https://api.icam.org.pt/'
 user = config['ICAM']['user']
 password = config['ICAM']['password']
 
@@ -24,7 +25,7 @@ dry_run = False
 
 # always false
 special_post = False
-# icam.clean_db()
+icam.clean_db()
 
 # this line adds categories and Article types
 icam.ctrees_testhook()
@@ -208,13 +209,14 @@ def do_the_post(ro: dict, pubmed_id):
 
         # if successful lets try to post the revision
         revision = {
-            "active": True,
             "article": {"id": article_id},
             "reviewState": "Accepted",
-            "reviewedByPeer": True if 'Sim' in ro['reviewedByPeer'] else False,
-            "reviewer": ro["autor"] + ' / ' + ro["revisor"],
+            "isPeerReviewed": True if 'Sim' in ro['reviewedByPeer'] else False,
+            "author": ro["autor"],
+            "reviewer": ro["revisor"],
             "summary": get_summary(ro),
-            "title": ro["title"]
+            "title": ro["title"],
+            "reviewDate": str(datetime.date.today())
         }
 
         keywords = get_keywords(ro)
@@ -234,10 +236,10 @@ def do_the_post(ro: dict, pubmed_id):
         else:
             print('NO ATYPE')
 
-        if "returnNotes" in ro.keys():
+        if "reviewNotes" in ro.keys():
             notes = ro['returnNotes']
             if notes and not notes.isspace():
-                revision['returnNotes'] = ro["returnNotes"]
+                revision['reviewNotes'] = ro["returnNotes"]
 
         kek = json.dumps(revision)
         print(f'\t\tRevision ready: {kek}')
@@ -256,7 +258,7 @@ def get_special_article(ro):
 
     dict_out = {
         'repoArticleId': parsed_row['id'],
-        'reviewState': 'Hold'  # Set the review state to Hold
+        'reviewState': 'Accepted'  # Set the review state to Hold
     }
 
     date = ro['articleDate']
@@ -281,10 +283,10 @@ def get_special_article(ro):
         dict_out['articleJournal'] = ro['articleJournal']
 
     if ro['articleDoi']:
-        dict_out['articleDoi'] = ro['articleDoi']
+        dict_out['articleLink'] = ro["articleDoi"] if 'https' in ro["articleDoi"] else f'https://doi.org/{ro["articleDoi"]}'
 
     if ro['citation']:
-        dict_out['citation'] = ro['citation']
+        dict_out['articleCitation'] = ro['citation']
 
     return dict_out
 

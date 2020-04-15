@@ -98,7 +98,6 @@ def get_single_article(pubmed_id):
 
     dict_out = {
         'repoArticleId': pubmed_id,  # Set PubMed ID
-        'reviewState': 'Hold'  # Set the review state to Hold
     }
 
     # Set the rest of the repo fields
@@ -188,7 +187,7 @@ def get_single_article(pubmed_id):
     # Get articleDoi
     doi = tree.xpath('//articleidlist//articleid[@idtype="doi"]')
     if doi:
-        dict_out['articleDoi'] = doi[0].text
+        dict_out['articleLink'] = 'https://doi.org/' + doi[0].text
 
     # Set the rest of our meta fields
 
@@ -196,6 +195,6 @@ def get_single_article(pubmed_id):
     dict_out['fetchDate'] = str(datetime.date.today())
 
     # Set citation
-    dict_out['citation'] = citation
+    dict_out['articleCitation'] = citation
 
     return dict_out
