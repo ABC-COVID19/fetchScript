@@ -35,12 +35,14 @@ pipeline {
 
     stages {
 
-        stage('Bump Version on file') {
+         stage('Bump Version on file') {
+            when {
+                branch "feature/*"
+            }
             steps {
-                script {
-                     writeFile(file: 'version.txt', text: "${NEW_VERSION}")
-                }
-                     sh "echo The new version will be: ${NEW_VERSION}"
+                 sh "echo ${NEW_VERSION} > version.txt"
+                 sh "cat version.txt || true"
+                 sh "echo The new version will be: ${NEW_VERSION}"
             }
         }
 
