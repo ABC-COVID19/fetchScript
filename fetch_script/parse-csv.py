@@ -1,6 +1,6 @@
 import csv
-from fetch_script import pubmed
-from fetch_script.icam import Icam
+import pubmed
+from icam import Icam
 import configparser
 import os
 import requests
