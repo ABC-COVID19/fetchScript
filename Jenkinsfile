@@ -34,10 +34,23 @@ pipeline {
     }
 
     stages {
+        
 
-         stage('Bump Version on file') {
+        stage('Recursive build Check') {
+            steps {
+                script {
+                    if (checkCommit("updated version to")){
+                        timeout(time: 10, unit: 'SECONDS') {
+                            input 'Recursive Run'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Bump Version on file') {
             when {
-                branch "feature/*"
+                branch "develop"
             }
             steps {
                  sh "echo ${NEW_VERSION} > version.txt"
@@ -55,25 +68,15 @@ pipeline {
 
             }
         }
-
-        // stage('Build Docker Image') {
-        //     steps {
-        //         container('java11'){
-        //         }
-        //     }
-        // }
-		
-        stage('Merge to Develop') {
+        stage('Update version on Develop') {
             when {
-                branch "feature/*"
+                branch "develop"
             }
              steps {
                         sh "git config --global user.email '${GIT_USER}'"
                         sh "git config --global user.name '${GIT_USER_NAME}'"
-                        sh "git config http.sslVerify false" //WorkAround
-                        sh "git checkout -f origin/develop" 
-                        sh "git merge --ff ${env.GIT_COMMIT}"
-
+                        sh "git add -A"
+                        sh "git commit -m 'updated version to ${NEW_VERSION}'"
                         withCredentials([usernamePassword(credentialsId: 'Jenkins-ICAM2', usernameVariable: 'username', passwordVariable: 'password')]) {
                              sh "git push https://${username}:${password}@${GIT_REPO} HEAD:develop"
                         }
